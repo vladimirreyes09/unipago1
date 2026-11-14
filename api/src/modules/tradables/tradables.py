@@ -28,3 +28,7 @@ class PublicStock(TradableModal):
 
 class PrivateStock(TradableModal):
     pass
+
+
+class CryptoCurrency(TradableModal):
+    pass
