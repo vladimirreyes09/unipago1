@@ -1,13 +1,16 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useTradeables } from "../hooks/useTradeables";
 import {
   TradableTypeSchema,
   TradeableBaseSchema,
+  type CreateTradeableInput,
   type Tradeable,
+  type TradeableField,
+  type UpdateTradeableInput,
 } from "../schemas/tradeable";
+import type { FormFieldError } from "../utils/errorParsing";
 
 const schema = TradeableBaseSchema.extend({
   tradable_type: z.string().pipe(TradableTypeSchema),
@@ -23,14 +26,31 @@ const DEFAULT_FORM_VAL: FormInput = {
 };
 
 interface TradeableFormProps {
-  tradeable?: Tradeable;
+  tradeable?: Tradeable | null;
+  loading: boolean;
+  error: string | null;
+  fieldErrors: FormFieldError<TradeableField>[];
+  onCreate: (payload: CreateTradeableInput) => Promise<Tradeable | null>;
+  onUpdate: (
+    id: number,
+    payload: UpdateTradeableInput
+  ) => Promise<Tradeable | null>;
+  onCancelEdit?: () => void;
   onSuccess?: (tradeable: Tradeable) => void;
 }
 
-export function TradeableForm({ tradeable, onSuccess }: TradeableFormProps) {
-  const { createTradeable, updateTradeable, loading, error, fieldErrors } =
-    useTradeables();
+export function TradeableForm({
+  tradeable,
+  loading,
+  error,
+  fieldErrors,
+  onCreate,
+  onUpdate,
+  onCancelEdit,
+  onSuccess,
+}: TradeableFormProps) {
   const isEditing = Boolean(tradeable);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
 
   const {
     register,
@@ -50,18 +70,6 @@ export function TradeableForm({ tradeable, onSuccess }: TradeableFormProps) {
   });
 
   useEffect(() => {
-    reset(
-      tradeable
-        ? {
-            name: tradeable.name,
-            symbol: tradeable.symbol,
-            tradable_type: tradeable.tradable_type,
-          }
-        : DEFAULT_FORM_VAL
-    );
-  }, [tradeable, reset]);
-
-  useEffect(() => {
     for (const fieldError of fieldErrors) {
       setError(fieldError.field, {
         type: fieldError.type,
@@ -71,12 +79,15 @@ export function TradeableForm({ tradeable, onSuccess }: TradeableFormProps) {
   }, [fieldErrors, setError]);
 
   const onSubmit: SubmitHandler<FormValues> = (data) => {
+    setSubmitAttempted(true);
+
     const request = tradeable
-      ? updateTradeable(tradeable.id, data)
-      : createTradeable(data);
+      ? onUpdate(tradeable.id, data)
+      : onCreate(data);
 
     return request.then((saved) => {
       if (saved) {
+        setSubmitAttempted(false);
         if (!isEditing) {
           reset(DEFAULT_FORM_VAL);
         }
@@ -140,21 +151,34 @@ export function TradeableForm({ tradeable, onSuccess }: TradeableFormProps) {
         )}
       </div>
 
-      {error && (
+      {submitAttempted && error && (
         <p className="form-error" role="alert">
           {error}
         </p>
       )}
 
-      <button className="submit-button" type="submit" disabled={loading}>
-        {loading
-          ? isEditing
-            ? "Actualizando..."
-            : "Creando..."
-          : isEditing
-            ? "Actualizar"
-            : "Crear"}
-      </button>
+      <div className="form-actions">
+        <button className="submit-button" type="submit" disabled={loading}>
+          {loading
+            ? isEditing
+              ? "Actualizando..."
+              : "Creando..."
+            : isEditing
+              ? "Actualizar"
+              : "Crear"}
+        </button>
+
+        {isEditing && onCancelEdit && (
+          <button
+            type="button"
+            className="cancel-button"
+            onClick={onCancelEdit}
+            disabled={loading}
+          >
+            Cancelar
+          </button>
+        )}
+      </div>
     </form>
   );
 }
