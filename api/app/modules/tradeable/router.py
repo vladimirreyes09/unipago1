@@ -1,18 +1,39 @@
 from flask import Blueprint, jsonify, request
-from peewee import IntegrityError
-from pydantic import ValidationError
-
-from app.modules.tradeable.dtos.tradeable_dto import CreateTradeableDto, TradeableDto
+from peewee import IntegrityError, Update
+from playhouse.shortcuts import model_to_dict
+from pydantic import ValidationError, TypeAdapter
+from app.modules.tradeable.dtos.tradeable_dto import (
+    CreateTradeableDto,
+    TradeableDto,
+    UpdateTradeableDto,
+)
 from app.modules.tradeable.enums.tradeable_type import TradableType
-from app.modules.tradeable.model import TradeableModel
+from app.modules.tradeable.model import TradeableModel, TradeableStatus
 
 tradeables_blueprint = Blueprint("tradables", __name__, url_prefix="/tradeables")
+
+LIMIT_PER_PAGE = 20
 
 
 @tradeables_blueprint.get("/", strict_slashes=False)
 def get_tradables():
-    tradables = [tradable.to_dict() for tradable in TradeableModel.select()]
-    return jsonify(tradables), 200
+
+    page = request.args.get("page", default=1, type=int)
+
+    offset = (page - 1) * LIMIT_PER_PAGE
+
+    tradeables = [
+        tradeable.to_dict()
+        for tradeable in TradeableModel.select()
+        .where(TradeableModel.status == TradeableStatus.ACTIVE)
+        .limit(LIMIT_PER_PAGE)
+        .offset(offset)
+    ]
+
+    validated_tradeables = TypeAdapter(list[TradeableDto]).dump_json(tradeables)
+
+    print(validated_tradeables)
+    return validated_tradeables, 200
 
 
 @tradeables_blueprint.get("/<int:tradable_id>")
@@ -26,7 +47,7 @@ def get_tradable(tradable_id: int):
 @tradeables_blueprint.post("/", strict_slashes=False)
 def create_tradable():
     data = request.get_json(silent=True) or {}
-
+    print(data)
     try:
         tradable_input = CreateTradeableDto.validate(data)
         tradable = TradeableModel.create(**tradable_input.dict())
@@ -49,7 +70,6 @@ def create_tradable():
         }
 
         return jsonify(error_json), 400
-
     # TODO: Use a centralized logger for unknown or unexpected exceptions so that someone can debug it,
     # but for now and for the sake of simplicity only used a print
 
@@ -66,21 +86,34 @@ def update_tradable(tradable_id: int):
     tradeable = TradeableModel.get_or_none(TradeableModel.id == tradable_id)
 
     if tradeable is None:
-        return jsonify({"error": "Tradable not found"}), 404
-
-    data = request.get_json(silent=True)
-    if not isinstance(data, dict):
-        return jsonify({"error": "Invalid JSON payload"}), 400
+        return jsonify({"error": "Tradable not found"}), 400
 
     # Next iteration: validate update payload before saving to the database.
-    for field in ("name", "symbol", "tradable_type"):
-        if field in data:
-            setattr(tradeable, field, data[field])
-
     try:
-        tradeable.save()
+        data = request.get_json(silent=True) or {}
+        modify_fields = UpdateTradeableDto.validate(data).dict(exclude_none=True)
+
+        updated = TradeableModel.update(**modify_fields).where(
+            (TradeableModel.id == tradeable.id)
+            & (TradeableModel.status == TradeableStatus.ACTIVE)
+        )
+
     except IntegrityError as exc:
         return jsonify({"error": str(exc)}), 400
+
+    except ValidationError as err:
+        error_json = {
+            "error": {
+                "type": "validation",
+                "message": "Some fields had a wrong input ",
+                "fields": [
+                    {"loc": e["loc"][0], "message": e["msg"], "type": e["type"]}
+                    for e in err.errors()
+                ],
+            }
+        }
+
+        return jsonify(error_json), 400
 
     return jsonify(tradeable.to_dict()), 200
 
