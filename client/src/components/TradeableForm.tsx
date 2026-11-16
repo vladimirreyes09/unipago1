@@ -1,28 +1,16 @@
+import { useEffect } from "react";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useTradeables } from "../hooks/useTradeables";
+import {
+  TradableTypeSchema,
+  TradeableBaseSchema,
+  type Tradeable,
+} from "../schemas/tradeable";
 
-const AssetTypeEnumSchema = z.enum([
-  "CryptoCurrency",
-  "Commodity",
-  "Future",
-  "TradableStock",
-  "PublicStock",
-  "PrivateStock",
-]);
-
-const schema = z.object({
-  name: z
-    .string({ message: "Debe ser un texto" })
-    .min(1, "Debe tener un nombre")
-    .max(200, "El nombre no debe tener más de 200 caracteres"),
-  symbol: z
-    .string({ message: "Debe ser un texto" })
-    .min(1, "Debe tener un símbolo")
-    .max(200, "El símbolo no debe tener más de 200 caracteres"),
-  tradable_type: z
-    .string()
-    .pipe(AssetTypeEnumSchema),
+const schema = TradeableBaseSchema.extend({
+  tradable_type: z.string().pipe(TradableTypeSchema),
 });
 
 type FormInput = z.input<typeof schema>;
@@ -34,17 +22,68 @@ const DEFAULT_FORM_VAL: FormInput = {
   tradable_type: "",
 };
 
-export function TradeableForm() {
+interface TradeableFormProps {
+  tradeable?: Tradeable;
+  onSuccess?: (tradeable: Tradeable) => void;
+}
+
+export function TradeableForm({ tradeable, onSuccess }: TradeableFormProps) {
+  const { createTradeable, updateTradeable, loading, error, fieldErrors } =
+    useTradeables();
+  const isEditing = Boolean(tradeable);
+
   const {
     register,
     handleSubmit,
+    reset,
+    setError,
     formState: { errors },
   } = useForm<FormInput, unknown, FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: DEFAULT_FORM_VAL,
+    defaultValues: tradeable
+      ? {
+          name: tradeable.name,
+          symbol: tradeable.symbol,
+          tradable_type: tradeable.tradable_type,
+        }
+      : DEFAULT_FORM_VAL,
   });
 
-  const onSubmit: SubmitHandler<FormValues> = (data) => console.log(data);
+  useEffect(() => {
+    reset(
+      tradeable
+        ? {
+            name: tradeable.name,
+            symbol: tradeable.symbol,
+            tradable_type: tradeable.tradable_type,
+          }
+        : DEFAULT_FORM_VAL
+    );
+  }, [tradeable, reset]);
+
+  useEffect(() => {
+    for (const fieldError of fieldErrors) {
+      setError(fieldError.field, {
+        type: fieldError.type,
+        message: fieldError.message,
+      });
+    }
+  }, [fieldErrors, setError]);
+
+  const onSubmit: SubmitHandler<FormValues> = (data) => {
+    const request = tradeable
+      ? updateTradeable(tradeable.id, data)
+      : createTradeable(data);
+
+    return request.then((saved) => {
+      if (saved) {
+        if (!isEditing) {
+          reset(DEFAULT_FORM_VAL);
+        }
+        onSuccess?.(saved);
+      }
+    });
+  };
 
   return (
     <form className="tradeable-form" onSubmit={handleSubmit(onSubmit)}>
@@ -88,7 +127,7 @@ export function TradeableForm() {
           <option value="" disabled>
             Selecciona un tipo
           </option>
-          {AssetTypeEnumSchema.options.map((type) => (
+          {TradableTypeSchema.options.map((type) => (
             <option key={type} value={type}>
               {type}
             </option>
@@ -101,8 +140,20 @@ export function TradeableForm() {
         )}
       </div>
 
-      <button className="submit-button" type="submit">
-        Crear
+      {error && (
+        <p className="form-error" role="alert">
+          {error}
+        </p>
+      )}
+
+      <button className="submit-button" type="submit" disabled={loading}>
+        {loading
+          ? isEditing
+            ? "Actualizando..."
+            : "Creando..."
+          : isEditing
+            ? "Actualizar"
+            : "Crear"}
       </button>
     </form>
   );
