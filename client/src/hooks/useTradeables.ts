@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { z } from "zod";
 import {
   PaginatedTradeablesSchema,
@@ -40,6 +40,7 @@ function parseWithSchema<T>(schema: z.ZodType<T>, raw: unknown): T {
 
 export function useTradeables() {
   const [tradeables, setTradeables] = useState<Tradeable[]>([]);
+  const tradeablesRef = useRef<Tradeable[]>([]);
   const [count, setCount] = useState(0);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
@@ -89,23 +90,20 @@ export function useTradeables() {
       )
         .then((response) => parseResponse(response, PaginatedTradeablesSchema))
         .then((data) => {
-          setTradeables((prev) => {
-            const nextList =
-              targetPage === 1
-                ? data.elements
-                : [
-                    ...prev,
-                    ...data.elements.filter(
-                      (item) =>
-                        !prev.some((existing) => existing.id === item.id)
-                    ),
-                  ];
+          const prev = tradeablesRef.current;
+          const nextList =
+            targetPage === 1
+              ? data.elements
+              : [
+                  ...prev,
+                  ...data.elements.filter(
+                    (item) => !prev.some((existing) => existing.id === item.id)
+                  ),
+                ];
 
-            setHasMore(
-              data.elements.length > 0 && nextList.length < data.count
-            );
-            return nextList;
-          });
+          tradeablesRef.current = nextList;
+          setTradeables(nextList);
+          setHasMore(data.elements.length > 0 && nextList.length < data.count);
           setCount(data.count);
           setPage(targetPage);
           return data;
@@ -156,7 +154,9 @@ export function useTradeables() {
       })
         .then((response) => parseResponse(response, TradeableSchema))
         .then((created) => {
-          setTradeables((prev) => [created, ...prev]);
+          const nextList = [created, ...tradeablesRef.current];
+          tradeablesRef.current = nextList;
+          setTradeables(nextList);
           setCount((prev) => prev + 1);
           return created;
         })
@@ -186,9 +186,11 @@ export function useTradeables() {
       })
         .then((response) => parseResponse(response, TradeableSchema))
         .then((updated) => {
-          setTradeables((prev) =>
-            prev.map((item) => (item.id === id ? updated : item))
+          const nextList = tradeablesRef.current.map((item) =>
+            item.id === id ? updated : item
           );
+          tradeablesRef.current = nextList;
+          setTradeables(nextList);
           return updated;
         })
         .catch((err: unknown) => {
@@ -216,7 +218,11 @@ export function useTradeables() {
             return handleFailedResponse(response);
           }
 
-          setTradeables((prev) => prev.filter((item) => item.id !== id));
+          const nextList = tradeablesRef.current.filter(
+            (item) => item.id !== id
+          );
+          tradeablesRef.current = nextList;
+          setTradeables(nextList);
           setCount((prev) => Math.max(0, prev - 1));
           return true;
         })

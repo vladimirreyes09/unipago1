@@ -89,7 +89,7 @@ export function TradeableForm({
       if (saved) {
         setSubmitAttempted(false);
         if (!isEditing) {
-          reset(DEFAULT_FORM_VAL);
+          reset(DEFAULT_FORM_VAL, { keepFieldsRef: true });
         }
         onSuccess?.(saved);
       }
