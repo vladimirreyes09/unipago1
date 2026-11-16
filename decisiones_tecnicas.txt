@@ -1,0 +1,39 @@
+
+Cosas que pude haber mejorado en el front-end: 
+
+En algunos momentos los commits sobre eran un poco más grandes de lo que deberían haber sido o tocaban distintos contextos de la aplicación al mismo tiempo lo cual puede ser contraproducente en proyectos del mundo real de un tamaño considerable
+
+Accesibilidad  los componentes que  cree estan pensados  para funcionar y cumplir con el requerimiento dentro un tiempo razonable.
+
+Perdí mucho tiempo estilando con CSS, quería utilizar tailwind pero estaba renuente de utilizarlo debido  que llevo tiempo sin configurarlo desde cero y creia que existia la posibilidad de perder mucho tiempo ahí.
+
+Perdí mucho tiempo creando el menejador de errores del Front-end, consideraba que la aplicación debería parecerse a lo que yo usiaría en el mundo real pero al mismo tiempo consideraba que utilizar react-query era excesivo.
+
+
+Error boundaries me los plantie pero los encontré innecesarios.
+
+Puede haber realizado test unitarios  algunos componentes, pero yá he perdido mucho tiempo, por lo que prefiero realizar test end-to-end y así me asguro que funcionan desde el punto de vista del usuario sin tener que testear todos los posibles casos en los que mi aplicación podría fallar.
+
+Pude haber agregado un buscador, pero no me va a dar el tiempo.
+
+Cosas que pude haber mejorado en el back-end:
+
+Utilizar un ORM puede parecer un excesivo dado el tamaño del requerimiento, pero todo lo que hice lo hice simulando un nuevo feature en un proyecto existente más grande, además si bien es cierto los ataques de SQL-Injection son un problema relativamente resuelto en la mayoría de conectores de bases de datos, es fácil confundirse y escribir código vulnerable.
+
+Vulnerable
+cur.execute(f"SELECT * FROM users WHERE email = '{user_email}'")
+cur.execute("SELECT * FROM users WHERE email = '%s'" % user_email)
+
+No vulnerable:
+cur.execute("SELECT * FROM users WHERE email = %s", (user_email,))
+
+
+La idea de los dtos puede parecer sobreingenierizar, pero lo hice imaginandome agregando un feature a un proyecto mucho más grande donde la solides y la seguridad son importantes, tienendo el DTO me aseguraba que sin importar que la query en el ORM pidiera información demás para validaciónes poder agarantizar que los campos que se sirven siempre sean unicamente los del DTO.
+
+
+Traté de escribir código de manera idiomatica de Python y me hizo gaster mucho tiempo, pero en algunos lugares de deja ver que no soy un experto en el lenguaje, como  por ejemplo durante las respuestas GET paginadas  itero 2 veces las repuestas para garantizar que todo cumpla con el DTO , y estoy 100% seguro de que haber una forma más eficiente.
+
+Yá que estaba con los DTOs, para evitar repetirme (DRY) debí haber haecho lo que los errores y sus distintos tipos tuvieran una interfaz común utilizando el decorador @abstract y así conseguir que todos los errores que se envian al cliente mantengan una misma estructura.
+
+Los errores que no vienen de las excepciones contempladas deberían loggearse con fines de debugging
+Si el servidor fuera a desplegarse debería incluir algún metodo de graceful shutdown, y rate-limiting para garantizar que todas las request pendientes se completan antes de apagarse y que las ningún usuario malitencionado ataque algún endpoint.
