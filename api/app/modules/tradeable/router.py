@@ -33,7 +33,6 @@ def get_tradables():
 
     validated_tradeables = TypeAdapter(list[TradeableDto]).dump_json(tradeables)
 
-    print(validated_tradeables)
     return validated_tradeables, HTTPStatus.OK
 
 
@@ -84,7 +83,10 @@ def create_tradable():
 
 @tradeables_blueprint.route("/<int:tradable_id>", methods=["PUT", "PATCH"])
 def update_tradable(tradable_id: int):
-    tradeable = TradeableModel.get_or_none(TradeableModel.id == tradable_id)
+    tradeable = TradeableModel.get_or_none(
+        (TradeableModel.id == tradable_id)
+        & (TradeableModel.status == TradeableStatus.ACTIVE)
+    )
 
     if tradeable is None:
         return jsonify({"error": "Tradable not found"}), HTTPStatus.NOT_FOUND
@@ -92,12 +94,25 @@ def update_tradable(tradable_id: int):
     # Next iteration: validate update payload before saving to the database.
     try:
         data = request.get_json(silent=True) or {}
-        modify_fields = UpdateTradeableDto.validate(data).dict(exclude_none=True)
+        modified_fields = UpdateTradeableDto.validate(data).dict(exclude_none=True)
 
-        updated = TradeableModel.update(**modify_fields).where(
-            (TradeableModel.id == tradeable.id)
-            & (TradeableModel.status == TradeableStatus.ACTIVE)
+        modified_rows = (
+            TradeableModel.update(**modified_fields)
+            .where(
+                (TradeableModel.id == tradeable.id)
+                & (TradeableModel.status == TradeableStatus.ACTIVE)
+            )
+            .execute()
         )
+
+        if modified_rows == 0:
+            return jsonify(
+                {"error": "Unable to execute update"}
+            ), HTTPStatus.BAD_REQUEST
+
+        updated = {**tradeable.to_dict(), **modified_fields}
+
+        return TradeableDto(**updated).model_dump_json()
 
     except IntegrityError as exc:
         return jsonify({"error": str(exc)}), HTTPStatus.BAD_REQUEST
@@ -108,7 +123,7 @@ def update_tradable(tradable_id: int):
                 "type": "validation",
                 "message": "Some fields had a wrong input ",
                 "fields": [
-                    {"loc": e["loc"][0], "message": e["msg"], "type": e["type"]}
+                    {"loc": e["loc"], "message": e["msg"], "type": e["type"]}
                     for e in err.errors()
                 ],
             }
