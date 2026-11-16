@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, json, jsonify, request
 from peewee import IntegrityError, Update
 from playhouse.shortcuts import model_to_dict
 from pydantic import ValidationError, TypeAdapter
@@ -31,9 +31,17 @@ def get_tradables():
         .offset(offset)
     ]
 
-    validated_tradeables = TypeAdapter(list[TradeableDto]).dump_json(tradeables)
+    count = (
+        TradeableModel.select()
+        .where(TradeableModel.status == TradeableStatus.ACTIVE)
+        .count()
+    )
 
-    return validated_tradeables, HTTPStatus.OK
+    validated_tradeables = TypeAdapter(list[TradeableDto]).dump_python(
+        tradeables, mode="json"
+    )
+
+    return jsonify({"count": count, "elements": validated_tradeables}), HTTPStatus.OK
 
 
 @tradeables_blueprint.get("/<int:tradable_id>")
