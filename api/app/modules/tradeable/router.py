@@ -9,6 +9,7 @@ from app.modules.tradeable.dtos.tradeable_dto import (
 )
 from app.modules.tradeable.enums.tradeable_type import TradableType
 from app.modules.tradeable.model import TradeableModel, TradeableStatus
+from http import HTTPStatus
 
 tradeables_blueprint = Blueprint("tradables", __name__, url_prefix="/tradeables")
 
@@ -33,15 +34,15 @@ def get_tradables():
     validated_tradeables = TypeAdapter(list[TradeableDto]).dump_json(tradeables)
 
     print(validated_tradeables)
-    return validated_tradeables, 200
+    return validated_tradeables, HTTPStatus.OK
 
 
 @tradeables_blueprint.get("/<int:tradable_id>")
 def get_tradable(tradable_id: int):
     tradable = TradeableModel.get_or_none(TradeableModel.id == tradable_id)
     if tradable is None:
-        return jsonify({"error": "Tradable not found"}), 404
-    return jsonify(tradable.to_dict()), 200
+        return jsonify({"error": "Tradable not found"}), HTTPStatus.NOT_FOUND
+    return jsonify(tradable.to_dict()), HTTPStatus.OK
 
 
 @tradeables_blueprint.post("/", strict_slashes=False)
@@ -53,7 +54,7 @@ def create_tradable():
         tradable = TradeableModel.create(**tradable_input.dict())
 
     except (KeyError, IntegrityError) as exc:
-        return jsonify({"error": str(exc)}), 400
+        return jsonify({"error": str(exc)}), HTTPStatus.BAD_REQUEST
 
     except ValidationError as err:
         # TODO: Take this validation message adapter to it's own file on a util folder,
@@ -69,16 +70,16 @@ def create_tradable():
             }
         }
 
-        return jsonify(error_json), 400
+        return jsonify(error_json), HTTPStatus.BAD_REQUEST
     # TODO: Use a centralized logger for unknown or unexpected exceptions so that someone can debug it,
     # but for now and for the sake of simplicity only used a print
 
     except Exception as e:
         print(e)
         error_json = {"error": {"type": "unknown", "message": "Something went wrong"}}
-        return jsonify(error_json), 400
+        return jsonify(error_json), HTTPStatus.INTERNAL_SERVER_ERROR
 
-    return jsonify(tradable.to_dict()), 201
+    return jsonify(tradable.to_dict()), HTTPStatus.CREATED
 
 
 @tradeables_blueprint.route("/<int:tradable_id>", methods=["PUT", "PATCH"])
@@ -86,7 +87,7 @@ def update_tradable(tradable_id: int):
     tradeable = TradeableModel.get_or_none(TradeableModel.id == tradable_id)
 
     if tradeable is None:
-        return jsonify({"error": "Tradable not found"}), 400
+        return jsonify({"error": "Tradable not found"}), HTTPStatus.NOT_FOUND
 
     # Next iteration: validate update payload before saving to the database.
     try:
@@ -99,7 +100,7 @@ def update_tradable(tradable_id: int):
         )
 
     except IntegrityError as exc:
-        return jsonify({"error": str(exc)}), 400
+        return jsonify({"error": str(exc)}), HTTPStatus.BAD_REQUEST
 
     except ValidationError as err:
         error_json = {
@@ -113,16 +114,16 @@ def update_tradable(tradable_id: int):
             }
         }
 
-        return jsonify(error_json), 400
+        return jsonify(error_json), HTTPStatus.BAD_REQUEST
 
-    return jsonify(tradeable.to_dict()), 200
+    return jsonify(tradeable.to_dict()), HTTPStatus.OK
 
 
 @tradeables_blueprint.delete("/<int:tradable_id>")
 def delete_tradable(tradable_id: int):
     tradable = TradeableModel.get_or_none(TradeableModel.id == tradable_id)
     if tradable is None:
-        return jsonify({"error": "Tradable not found"}), 404
+        return jsonify({"error": "Tradable not found"}), HTTPStatus.NOT_FOUND
 
     tradable.delete_instance()
-    return jsonify({"deleted": True, "id": tradable_id}), 204
+    return jsonify({"deleted": True, "id": tradable_id}), HTTPStatus.NO_CONTENT
