@@ -27,7 +27,7 @@ export type {
 };
 
 const API_BASE_URL = (
-  (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:5000"
+  (import.meta.env.VITE_API_URL as string | undefined) ?? "/api"
 ).replace(/\/$/, "");
 
 function parseWithSchema<T>(schema: z.ZodType<T>, raw: unknown): T {
@@ -42,6 +42,7 @@ export function useTradeables() {
   const [tradeables, setTradeables] = useState<Tradeable[]>([]);
   const [count, setCount] = useState(0);
   const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<
@@ -88,12 +89,29 @@ export function useTradeables() {
       )
         .then((response) => parseResponse(response, PaginatedTradeablesSchema))
         .then((data) => {
-          setTradeables(data.elements);
+          setTradeables((prev) => {
+            const nextList =
+              targetPage === 1
+                ? data.elements
+                : [
+                    ...prev,
+                    ...data.elements.filter(
+                      (item) =>
+                        !prev.some((existing) => existing.id === item.id)
+                    ),
+                  ];
+
+            setHasMore(
+              data.elements.length > 0 && nextList.length < data.count
+            );
+            return nextList;
+          });
           setCount(data.count);
           setPage(targetPage);
           return data;
         })
         .catch((err: unknown) => {
+          setHasMore(false);
           setError(err instanceof Error ? err.message : "Error desconocido");
           return null;
         })
@@ -217,6 +235,7 @@ export function useTradeables() {
     tradeables,
     count,
     page,
+    hasMore,
     loading,
     error,
     fieldErrors,

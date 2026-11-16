@@ -1,43 +1,86 @@
-import { useState } from 'react'
-import './App.css'
-import { TradeableForm } from './components/TradeableForm'
+import { useCallback, useEffect, useState } from "react";
+import "./App.css";
+import { TradeableForm } from "./components/TradeableForm";
+import { TradeableList } from "./components/TradeableList";
+import { useTradeables, type Tradeable } from "./hooks/useTradeables";
 
 function App() {
-  const [count, setCount] = useState(0)
+  const {
+    tradeables,
+    count,
+    page,
+    hasMore,
+    loading,
+    error,
+    fieldErrors,
+    fetchTradeables,
+    createTradeable,
+    updateTradeable,
+    deleteTradeable,
+  } = useTradeables();
+
+  const [editingTradeable, setEditingTradeable] = useState<Tradeable | null>(
+    null
+  );
+
+  useEffect(() => {
+    fetchTradeables(1);
+  }, [fetchTradeables]);
+
+  const handleLoadMore = useCallback(() => {
+    fetchTradeables(page + 1);
+  }, [fetchTradeables, page]);
+
+  const handleDelete = useCallback(
+    (id: number) => {
+      return deleteTradeable(id).then((deleted) => {
+        if (deleted && editingTradeable?.id === id) {
+          setEditingTradeable(null);
+        }
+        return deleted;
+      });
+    },
+    [deleteTradeable, editingTradeable]
+  );
 
   return (
     <>
-      <section id="">
+      <section id="center">
         <div className="hero">
-          <h1>Registro de activos trasables</h1>
+          <h1>Registro de activos transables</h1>
         </div>
-        <div>
-          <TradeableForm />
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
+        <TradeableForm
+          key={editingTradeable?.id ?? "new"}
+          tradeable={editingTradeable}
+          loading={loading}
+          error={error}
+          fieldErrors={fieldErrors}
+          onCreate={createTradeable}
+          onUpdate={updateTradeable}
+          onCancelEdit={() => setEditingTradeable(null)}
+          onSuccess={() => setEditingTradeable(null)}
+        />
       </section>
 
-      <div className="ticks">
+      <div className="ticks" />
 
-      </div>
-
-      <section id="next-steps">
-        <div id="docs">
-        </div>
-        <div id="social">
-        </div>
+      <section className="tradeables-section">
+        <TradeableList
+          tradeables={tradeables}
+          count={count}
+          loading={loading}
+          hasMore={hasMore}
+          error={error}
+          onLoadMore={handleLoadMore}
+          onDelete={handleDelete}
+          onEdit={setEditingTradeable}
+        />
       </section>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
+      <div className="ticks" />
+      <section id="spacer" />
     </>
-  )
+  );
 }
 
-export default App
+export default App;
