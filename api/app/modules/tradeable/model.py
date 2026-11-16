@@ -13,7 +13,6 @@ class TradeableModel(BaseModel):
     id = AutoField()
     name = TextField(null=False)
     symbol = TextField(null=False)
-    # Probably a constantly changing value that should not be updated on each trade
     tradable_type = TextField(null=False, default=TradableType.TradableStock)
 
     def to_dict(self) -> dict:
