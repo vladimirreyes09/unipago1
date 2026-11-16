@@ -1,3 +1,7 @@
+Errores conscientes:
+Push a la rama main, justificable por el contexto de no haber producción real.
+No incluir una ruta que permita visualizar un solo elemento de forma independiente, tomé la decisión por falta de tiempo.
+Mantener el formulario siempre visible y ocupando especio, en cuanto a experiencia de usuario podría resultar chocante, si tuviera más tiempo lo movería a un modal que mantenga su estado en una ruta especifica de la URL.
 
 Cosas que pude haber mejorado en el front-end: 
 

@@ -1,0 +1,25 @@
+services:
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_PATH: /app/data/test.db
+    ports:
+      - "${API_PORT:-5000}:5000"
+    volumes:
+      - api_data:/app/data
+    restart: unless-stopped
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    ports:
+      - "${CLIENT_PORT:-5173}:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  api_data:
