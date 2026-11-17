@@ -23,7 +23,7 @@ npm run start
 ```bash
 docker compose -f docker-compose.test.yml  up --abort-on-container-exit
 ```
-*No solo es más sencillo de correr sino tambien más seguro* 
+*No solo es más sencillo de correr sino tambien más seguro para la persona que corre los test, dado que código arbitrario está corriendo en su maquina*
 
 Quedo a la expectativa del feedback.
 
