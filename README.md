@@ -14,6 +14,20 @@ Ambos servicios (frontend y backend) subirán automáticamente. El cliente se en
 
 Si deseas leer las decisiones técnicas, puedes consultarlas en el archivo `decisiones_tecnicas.txt`.
 
+
+#Test
+```bash
+```
+```bash
+npm run start
+```
+
+(Recomendado) Correr los n2n test dentro de un contenedor
+
+```bash
+docker compose -f docker-compose.test.yml  up --abort-on-container-exit
+```
+
 Quedo a la expectativa del feedback.
 
 Notas importantes: 

@@ -1,0 +1,32 @@
+services:
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_PATH: /app/data/test.db
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/ >/dev/null 2>&1 || exit 1"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+
+  cypress:
+    image: cypress/included:16.3.0
+    working_dir: /e2e
+    depends_on:
+      client:
+        condition: service_healthy
+    environment:
+      CYPRESS_baseUrl: http://client
+    volumes:
+      - ./client/cypress:/e2e/cypress
+      - ./client/cypress.config.ts:/e2e/cypress.config.ts:ro
+    command: ["--browser", "firefox", "--headless"]
